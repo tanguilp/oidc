@@ -1,6 +1,67 @@
 defmodule OIDC.Auth do
   @moduledoc """
   Create and verify OpenID Connect challenges for a specific OP
+  """
+
+  alias OIDC.Auth.{
+    Challenge,
+    ClientConfig,
+    OPResponseError,
+    OPResponseSuccess,
+    ProtocolError,
+    ServerMetadata
+  }
+  alias OIDC.IDToken
+
+  @type challenge_opts :: [challenge_opt()]
+
+  @type challenge_opt ::
+  {:acr_values, [OIDC.acr()]}
+  | {:claims, OIDC.claims()}
+  | {:client_config, module()}
+  | {:client_id, OIDC.client_id()}
+  | {:display, String.t()}
+  | {:id_token_iat_max_time_gap, non_neg_integer()}
+  | {:issuer, OIDC.issuer()}
+  | {:login_hint, String.t()}
+  | {:max_age, non_neg_integer()}
+  | {:oauth2_metadata_updater_opts, Keyword.t()}
+  | {:prompt, String.t()}
+  | {:redirect_uri, String.t()}
+  | {:response_mode, OIDC.response_mode()}
+  | {:response_type, OIDC.response_type()}
+  | {:scope, [OIDC.scope()]}
+  | {:server_metadata, OIDC.server_metadata()}
+  | {:ui_locales, [OIDC.ui_locale()]}
+  | {:use_nonce, :when_mandatory | :always}
+
+  @type verify_opts() :: [verify_opt()]
+  @type verify_opt() :: {:tesla_middlewares, [Tesla.Client.middleware()]}
+
+  @type op_response :: %{optional(String.t()) => any()}
+
+  @allowed_response_modes [
+    "query",
+    "fragment",
+    "form_post"
+  ]
+
+  @allowed_response_types [
+    "code",
+    "id_token",
+    "id_token token",
+    "code id_token",
+    "code token",
+  "code id_token token"
+]
+
+  @doc """
+  Generates an OpenID Connect challenge or raise an exception if a parameter is missing
+
+  This challenge is to be passed back to `verify_challenge/2` when redirected back from the
+  OpenID Provider
+
+  Note that a code verifier is automatically generated when supported by the OP.
 
   ## Options
   - `:acr_values`: voluntary set of ACRs to be requested via the `"acr_values"` parameter
@@ -35,8 +96,6 @@ defmodule OIDC.Auth do
   - `:server_metadata`: server metadata that takes precedence over those automatically retrieve
   on the OP configuration (requested from the issuer). Usefull when the OP does not support
   OpenID Connect discovery, or the override one or more parameters
-  - `:token_endpoint_tesla_auth_middleware_opts`: additional `Keyword.t()` options to be passed
-  to the authentication Tesla middlewares on the token endpoint (see `TeslaOAuth2ClientAuth`)
   - `ui_locales`: the ui locales OpenID Connect parameter
   - `:use_nonce`: one of:
     - `:when_mandatory` [*Default*]: a nonce is included when using the implicit and
@@ -44,64 +103,7 @@ defmodule OIDC.Auth do
     - `:always`: always include a nonce (i.e. also in the code flow in which it is
     optional)
   """
-
-  alias OIDC.Auth.{
-    Challenge,
-    ClientConfig,
-    OPResponseError,
-    OPResponseSuccess,
-    ProtocolError,
-    ServerMetadata
-  }
-  alias OIDC.IDToken
-
-  @type opts :: [opt()]
-
-  @type opt ::
-  {:acr_values, [OIDC.acr()]}
-  | {:claims, OIDC.claims()}
-  | {:client_config, module()}
-  | {:client_id, OIDC.client_id()}
-  | {:display, String.t()}
-  | {:id_token_iat_max_time_gap, non_neg_integer()}
-  | {:issuer, OIDC.issuer()}
-  | {:login_hint, String.t()}
-  | {:max_age, non_neg_integer()}
-  | {:oauth2_metadata_updater_opts, Keyword.t()}
-  | {:prompt, String.t()}
-  | {:redirect_uri, String.t()}
-  | {:response_mode, OIDC.response_mode()}
-  | {:response_type, OIDC.response_type()}
-  | {:scope, [OIDC.scope()]}
-  | {:server_metadata, OIDC.server_metadata()}
-  | {:token_endpoint_tesla_auth_middleware_opts, Keyword.t()}
-  | {:ui_locales, [OIDC.ui_locale()]}
-  | {:use_nonce, :when_mandatory | :always}
-
-  @type op_response :: %{optional(String.t()) => any()}
-
-  @allowed_response_modes [
-    "query",
-    "fragment",
-    "form_post"
-  ]
-
-  @allowed_response_types [
-    "code",
-    "id_token",
-    "id_token token",
-    "code id_token",
-    "code token",
-  "code id_token token"
-]
-
-  @doc """
-  Generates an OpenID Connect challenge or raise an exception if a parameter is missing
-
-  This challenge is to be passed back to `verify_challenge/2` when redirected back from the
-  OpenID Provider
-  """
-  @spec gen_challenge(opts()) :: Challenge.t() | no_return()
+  @spec gen_challenge(challenge_opts()) :: Challenge.t() | no_return()
   def gen_challenge(opts) do
     unless opts[:issuer], do: raise "missing issuer"
     unless opts[:client_id], do: raise "missing client_id"
@@ -122,26 +124,36 @@ defmodule OIDC.Auth do
       client_config: opts[:client_config],
       id_token_iat_max_time_gap: opts[:id_token_iat_max_time_gap],
       issuer: opts[:issuer],
-      mandatory_acrs: mandatory_acrs(opts["claims"]),
+      mandatory_acrs: mandatory_acrs(opts[:claims]),
       nonce: maybe_gen_nonce(opts),
       oauth2_metadata_updater_opts: opts[:oauth2_metadata_updater_opts],
+      pkce_code_verifier: maybe_gen_pkce_code_verifier(opts),
       redirect_uri: opts[:redirect_uri],
       response_type: opts[:response_type],
       scope: scope,
       server_metadata: opts[:server_metadata],
-      state_param: gen_secure_random_string(),
-      token_endpoint_tesla_auth_middleware_opts: opts[:token_endpoint_tesla_auth_middleware_opts]
+      state_param: gen_secure_random_string()
     }
   end
 
   @doc """
   Verifies an OpenID Connect challenge against the OP's response
+
+  ## Options
+
+  - `:tesla_middlewares`: `Tesla` middlewares added to outbound request (for exemple requests
+  to the token endpoint)
+  - `:tesla_auth_middleware_opts`: additional `Keyword.t()` options to be passed as options to
+  the `TeslaOAuth2ClientAuth` authentication middleware
   """
   @spec verify_response(
     op_response(),
-    Challenge.t()
-  ) :: {:ok, OPResponseSuccess.t()} | {:error, Exception.t()}
-  def verify_response(%{"error" => _} = op_response, _challenge) do
+    Challenge.t(),
+    verify_opts()
+  ) :: {:ok, OPResponseSuccess.t()} | {:error, OPResponseError.t()} | {:error, Exception.t()}
+  def verify_response(op_response, challenge, verify_opts \\ [])
+
+  def verify_response(%{"error" => _} = op_response, _challenge, _opts) do
     {
       :error,
       %OPResponseError{
@@ -152,10 +164,10 @@ defmodule OIDC.Auth do
     }
   end
 
-  def verify_response(op_response, challenge) do
+  def verify_response(op_response, challenge, opts) do
     with :ok <- verify_response_params(op_response, challenge),
          {:ok, client_config} <- client_config(challenge),
-         {:ok, response} <- validate_op_response(op_response, challenge, client_config) do
+         {:ok, response} <- validate_op_response(op_response, challenge, client_config, opts) do
       {:ok, response}
     end
   end
@@ -163,7 +175,7 @@ defmodule OIDC.Auth do
   @doc """
   Generates an OpenID Connect request URI from a challenge and associated options
   """
-  @spec request_uri(Challenge.t(), opts()) :: URI.t()
+  @spec request_uri(Challenge.t(), challenge_opts()) :: URI.t()
   def request_uri(challenge, opts) do
     authorization_endpoint =
       ServerMetadata.get(opts)["authorization_endpoint"] ||
@@ -173,11 +185,15 @@ defmodule OIDC.Auth do
       raise "Invalid response mode, must be one of: #{inspect(@allowed_response_modes)}"
     end
 
+    {code_challenge, code_challenge_method} = maybe_hash_code_verifier_and_method(challenge, opts)
+
     params =
       Map.new()
       |> Map.put(:acr_values, opts[:acr_values])
       |> Map.put(:claims, opts[:claims])
       |> Map.put(:client_id, challenge.client_id)
+      |> Map.put(:code_challenge, code_challenge)
+      |> Map.put(:code_challenge_method, code_challenge_method)
       |> Map.put(:display, opts[:display])
       |> Map.put(:id_token_hint, opts[:id_token_hint])
       |> Map.put(:login_hint, opts[:login_hint])
@@ -214,7 +230,30 @@ defmodule OIDC.Auth do
     |> Map.put(:fragment, nil)
   end
 
-  @spec auth_time_required?(opts()) :: boolean()
+  @spec maybe_hash_code_verifier_and_method(Challenge.t(), challenge_opts()) ::
+  {String.t() | nil, String.t() | nil}
+  defp maybe_hash_code_verifier_and_method(%Challenge{pkce_code_verifier: nil}, _opts) do
+    {nil, nil}
+  end
+
+  defp maybe_hash_code_verifier_and_method(challenge, opts) do
+    methods = ServerMetadata.get(opts)["code_challenge_methods_supported"] || []
+
+    if "S256" in methods do
+      {
+        :crypto.hash(:sha256, challenge.pkce_code_verifier) |> Base.url_encode64(padding: false),
+        "S256"
+      }
+    else
+      if "plain" in methods do
+        {challenge.pkce_code_verifier, "plain"}
+      else
+        {nil, nil}
+      end
+    end
+  end
+
+  @spec auth_time_required?(challenge_opts()) :: boolean()
   defp auth_time_required?(opts) do
     cond do
       is_integer(opts[:max_age]) ->
@@ -249,7 +288,7 @@ defmodule OIDC.Auth do
     nil
   end
 
-  @spec maybe_gen_nonce(opts()) :: String.t() | nil
+  @spec maybe_gen_nonce(challenge_opts()) :: String.t() | nil
   defp maybe_gen_nonce(opts) do
     case opts[:use_nonce] do
       :always ->
@@ -267,6 +306,17 @@ defmodule OIDC.Auth do
         do
           gen_secure_random_string()
         end
+    end
+  end
+
+  @spec maybe_gen_pkce_code_verifier(challenge_opts()) :: String.t() | nil
+  defp maybe_gen_pkce_code_verifier(opts) do
+    case ServerMetadata.get(opts) do
+      %{"code_challenge_methods_supported" => [_ | _]} ->
+        gen_secure_random_string()
+
+      _ ->
+        nil
     end
   end
 
@@ -313,14 +363,16 @@ defmodule OIDC.Auth do
   @spec validate_op_response(
     op_response(),
     Challenge.t(),
-    ClientConfig.t()
+    ClientConfig.t(),
+    verify_opts()
   ) :: {:ok, OPResponseSuccess.t()} | {:error, Exception.t()}
   defp validate_op_response(
     %{"code" => code},
     %Challenge{response_type: "code"} = challenge,
-    client_config
+    client_config,
+    opts
   ) do
-    with {:ok, token_endpoint_response} <- exchange_code(code, challenge, client_config),
+    with {:ok, token_endpoint_response} <- exchange_code(code, challenge, client_config, opts),
          :ok <- validate_token_endpoint_response(token_endpoint_response),
          id_token = token_endpoint_response["id_token"],
          {:ok, {claims, _jwk}} <- IDToken.verify(id_token, client_config, challenge),
@@ -344,7 +396,8 @@ defmodule OIDC.Auth do
   defp validate_op_response(
     %{"id_token" => serialized_id_token} = params,
     %Challenge{response_type: "id_token"} = challenge,
-    client_config
+    client_config,
+    _opts
   ) do
     with {:ok, {claims, _jwk}} <- IDToken.verify(serialized_id_token, client_config, challenge),
          {:ok, granted_scopes} <- granted_scopes(params, challenge)
@@ -363,7 +416,8 @@ defmodule OIDC.Auth do
   defp validate_op_response(
     %{"id_token" => serialized_id_token, "access_token" => access_token} = params,
     %Challenge{response_type: "id_token token"} = challenge,
-    client_config
+    client_config,
+    _opts
   ) do
     with {:ok, {claims, jwk}} <- IDToken.verify(serialized_id_token, client_config, challenge),
          {:ok, granted_scopes} <- granted_scopes(params, challenge),
@@ -386,11 +440,12 @@ defmodule OIDC.Auth do
   defp validate_op_response(
     %{"code" => code, "id_token" => serialized_id_token},
     %Challenge{response_type: "code id_token"} = challenge,
-    client_config
+    client_config,
+    opts
   ) do
     with {:ok, {claims, jwk}} <- IDToken.verify(serialized_id_token, client_config, challenge),
          :ok <- IDToken.verify_hash("c_hash", code, claims, jwk),
-         {:ok, token_endpoint_response} <- exchange_code(code, challenge, client_config),
+         {:ok, token_endpoint_response} <- exchange_code(code, challenge, client_config, opts),
          :ok <- validate_token_endpoint_response(token_endpoint_response),
          id_token = token_endpoint_response["id_token"],
          access_token = token_endpoint_response["access_token"],
@@ -419,9 +474,10 @@ defmodule OIDC.Auth do
   defp validate_op_response(
     %{"code" => code, "access_token" => _access_token},
     %Challenge{response_type: "code token"} = challenge,
-    client_config
+    client_config,
+    opts
   ) do
-    with {:ok, token_endpoint_response} <- exchange_code(code, challenge, client_config),
+    with {:ok, token_endpoint_response} <- exchange_code(code, challenge, client_config, opts),
          :ok <- validate_token_endpoint_response(token_endpoint_response),
          id_token = token_endpoint_response["id_token"],
          access_token = token_endpoint_response["access_token"],
@@ -448,12 +504,13 @@ defmodule OIDC.Auth do
   defp validate_op_response(
     %{"code" => code, "id_token" => serialized_id_token, "access_token" => access_token},
     %Challenge{response_type: "code id_token token"} = challenge,
-    client_config
+    client_config,
+    opts
   ) do
     with {:ok, {claims, jwk}} <- IDToken.verify(serialized_id_token, client_config, challenge),
          :ok <- IDToken.verify_hash("at_hash", access_token, claims, jwk),
          :ok <- IDToken.verify_hash("c_hash", code, claims, jwk),
-         {:ok, token_endpoint_response} <- exchange_code(code, challenge, client_config),
+         {:ok, token_endpoint_response} <- exchange_code(code, challenge, client_config, opts),
          :ok <- validate_token_endpoint_response(token_endpoint_response),
          id_token = token_endpoint_response["id_token"],
          access_token = token_endpoint_response["access_token"],
@@ -496,9 +553,10 @@ defmodule OIDC.Auth do
   @spec exchange_code(
     String.t(),
     Challenge.t(),
-    ClientConfig.t()
+    ClientConfig.t(),
+    verify_opts()
   ) :: {:ok, map()} | {:error, Exception.t()}
-  defp exchange_code(code, challenge, client_config) do
+  defp exchange_code(code, challenge, client_config, opts) do
     token_endpoint = ServerMetadata.get(challenge)["token_endpoint"] ||
       raise "Unable to retrieve `token_endpoint` from server metadata or configuration"
 
@@ -507,8 +565,9 @@ defmodule OIDC.Auth do
       "code" => code,
       "redirect_uri" => challenge.redirect_uri
     }
+    |> maybe_set_code_verifier(challenge)
 
-    with {:ok, middlewares} <- token_endpoint_tesla_middlewares(challenge, client_config) do
+    with {:ok, middlewares} <- tesla_middlewares(challenge, client_config, opts) do
       http_client = Tesla.client(middlewares)
 
       case Tesla.post(http_client, token_endpoint, body) do
@@ -524,17 +583,23 @@ defmodule OIDC.Auth do
     end
   end
 
-  @spec token_endpoint_tesla_middlewares(
+  @spec maybe_set_code_verifier(map(), Challenge.t()) :: map()
+  defp maybe_set_code_verifier(body, %Challenge{pkce_code_verifier: nil}), do: body
+  defp maybe_set_code_verifier(body, challenge),
+    do: Map.put(body, "code_verifier", challenge.pkce_code_verifier)
+
+  @spec tesla_middlewares(
     Challenge.t(),
-    ClientConfig.t()
+    ClientConfig.t(),
+    verify_opts()
   ) :: {:ok, [Tesla.Client.middleware()]} | {:error, Exception.t()}
-  defp token_endpoint_tesla_middlewares(challenge, client_config) do
+  defp tesla_middlewares(challenge, client_config, opts) do
     auth_method = client_config["token_endpoint_auth_method"] || "client_secret_basic"
 
     case TeslaOAuth2ClientAuth.implementation(auth_method) do
       {:ok, authenticator} ->
         middleware_opts = Map.merge(
-          challenge.token_endpoint_tesla_auth_middleware_opts || %{},
+          opts[:tesla_auth_middleware_opts] || %{},
           %{
             client_id: challenge.client_id,
             client_config: client_config,
@@ -547,6 +612,7 @@ defmodule OIDC.Auth do
           [{authenticator, middleware_opts}]
           ++ [Tesla.Middleware.FormUrlencoded]
           ++ [Tesla.Middleware.DecodeJson]
+          ++ (opts[:tesla_middlewares] || [])
           ++ Application.get_env(:oidc, :tesla_middlewares, [])
         }
 
@@ -575,7 +641,7 @@ defmodule OIDC.Auth do
 
   @spec gen_secure_random_string() :: String.t()
   defp gen_secure_random_string() do
-    :crypto.strong_rand_bytes(20)
+    :crypto.strong_rand_bytes(32)
     |> Base.url_encode64(padding: false)
   end
 end

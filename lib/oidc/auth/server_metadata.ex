@@ -1,9 +1,11 @@
 defmodule OIDC.Auth.ServerMetadata do
   @moduledoc false
 
+  #FIXME: move somewhere else
+
   alias OIDC.Auth.Challenge
 
-  @spec get(OIDC.Auth.opts() | Challenge.t()) :: OIDC.server_metadata()
+  @spec get(OIDC.Auth.challenge_opts() | Challenge.t()) :: OIDC.server_metadata()
   def get(%Challenge{} = challenge) do
     get([
       server_metadata: challenge.server_metadata,

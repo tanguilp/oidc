@@ -14,6 +14,7 @@ defmodule OIDC.Auth.Challenge do
     :mandatory_acrs,
     :nonce,
     :oauth2_metadata_updater_opts,
+    :pkce_code_verifier,
     :redirect_uri,
     :response_type,
     :scope,
@@ -31,10 +32,11 @@ defmodule OIDC.Auth.Challenge do
     mandatory_acrs: [OIDC.acr()] | nil,
     nonce: OIDC.nonce() | nil,
     oauth2_metadata_updater_opts: Keyword.t() | nil,
+    pkce_code_verifier: String.t() | nil,
     redirect_uri: OIDC.redirect_uri(),
     response_type: OIDC.response_type(),
     scope: [OIDC.scope()],
-    server_metadata: OIDC.server_metadata() | nil, #TODO: rename op_metadata
+    server_metadata: OIDC.server_metadata() | nil,
     state_param: String.t(),
     token_endpoint_tesla_auth_middleware_opts: Keyword.t() | nil
   }

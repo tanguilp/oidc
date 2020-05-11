@@ -40,7 +40,7 @@ defmodule OIDC.AuthTest do
         "code" => "authz_code"
       }
 
-      assert {:ok, _} = Auth.verify_challenge(op_response, challenge)
+      assert {:ok, _} = Auth.verify_response(op_response, challenge)
     end
 
     test "valid response with response type id_token", %{client: client, op: op, challenge: challenge} do
@@ -53,7 +53,7 @@ defmodule OIDC.AuthTest do
         "id_token" => signed_id_token(op, client, nonce: @nonce)
       }
 
-      assert {:ok, _} = Auth.verify_challenge(op_response, challenge)
+      assert {:ok, _} = Auth.verify_response(op_response, challenge)
     end
 
     test "valid response with response type id_token token", %{client: client, op: op, challenge: challenge} do
@@ -72,7 +72,7 @@ defmodule OIDC.AuthTest do
         "token_type" => "bearer",
       }
 
-      assert {:ok, _} = Auth.verify_challenge(op_response, challenge)
+      assert {:ok, _} = Auth.verify_response(op_response, challenge)
     end
 
     test "valid response with response type code id_token", %{client: client, op: op, challenge: challenge} do
@@ -90,7 +90,7 @@ defmodule OIDC.AuthTest do
         ),
       }
 
-      assert {:ok, _} = Auth.verify_challenge(op_response, challenge)
+      assert {:ok, _} = Auth.verify_response(op_response, challenge)
     end
 
     test "valid response with response type code token", %{challenge: challenge} do
@@ -105,7 +105,7 @@ defmodule OIDC.AuthTest do
         "token_type" => "bearer"
       }
 
-      assert {:ok, _} = Auth.verify_challenge(op_response, challenge)
+      assert {:ok, _} = Auth.verify_response(op_response, challenge)
     end
 
     test "valid response with response type code id_token token", %{client: client, op: op, challenge: challenge} do
@@ -127,7 +127,7 @@ defmodule OIDC.AuthTest do
         ),
       }
 
-      assert {:ok, _} = Auth.verify_challenge(op_response, challenge)
+      assert {:ok, _} = Auth.verify_response(op_response, challenge)
     end
   end
 
@@ -149,7 +149,8 @@ defmodule OIDC.AuthTest do
       client_id: client["client_id"],
       client_config: OIDCTest.Support.Helpers,
       redirect_uri: "https://rp.com/redirect_uri",
-      server_metadata: op
+      server_metadata: op,
+      id_token_iat_max_time_gap: 5
     }
 
     Map.put(context, :challenge, challenge)
