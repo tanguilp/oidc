@@ -61,7 +61,8 @@ defmodule OIDC.Auth do
   This challenge is to be passed back to `verify_challenge/2` when redirected back from the
   OpenID Provider
 
-  Note that a code verifier is automatically generated when supported by the OP.
+  Note that a code verifier is automatically generated when supported by the OP and a code
+  is requested by the response type.
 
   ## Options
   - `:acr_values`: voluntary set of ACRs to be requested via the `"acr_values"` parameter
@@ -311,12 +312,14 @@ defmodule OIDC.Auth do
 
   @spec maybe_gen_pkce_code_verifier(challenge_opts()) :: String.t() | nil
   defp maybe_gen_pkce_code_verifier(opts) do
-    case ServerMetadata.get(opts) do
-      %{"code_challenge_methods_supported" => [_ | _]} ->
-        gen_secure_random_string()
+    if opts[:response_type] in ["code", "code id_token", "code token", "code id_token token"] do
+      case ServerMetadata.get(opts) do
+        %{"code_challenge_methods_supported" => [_ | _]} ->
+          gen_secure_random_string()
 
-      _ ->
-        nil
+        _ ->
+          nil
+      end
     end
   end
 
