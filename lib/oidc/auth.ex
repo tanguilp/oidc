@@ -36,7 +36,10 @@ defmodule OIDC.Auth do
   | {:use_nonce, :when_mandatory | :always}
 
   @type verify_opts() :: [verify_opt()]
-  @type verify_opt() :: {:tesla_middlewares, [Tesla.Client.middleware()]}
+  @type verify_opt() ::
+  {:jti_register, module()}
+  | {:tesla_auth_middleware_opts, Keyword.t()}
+  | {:tesla_middlewares, [Tesla.Client.middleware()]}
 
   @type op_response :: %{optional(String.t()) => any()}
 
@@ -142,6 +145,8 @@ defmodule OIDC.Auth do
 
   ## Options
 
+  - `:jti_register`: a module implementing the `JTIRegister` behaviour, used to check against
+  ID token replay
   - `:tesla_middlewares`: `Tesla` middlewares added to outbound request (for exemple requests
   to the token endpoint)
   - `:tesla_auth_middleware_opts`: additional `Keyword.t()` options to be passed as options to
@@ -375,10 +380,12 @@ defmodule OIDC.Auth do
     client_config,
     opts
   ) do
+    verification_data = verification_data(challenge, opts)
+
     with {:ok, token_endpoint_response} <- exchange_code(code, challenge, client_config, opts),
          :ok <- validate_token_endpoint_response(token_endpoint_response),
          id_token = token_endpoint_response["id_token"],
-         {:ok, {claims, _jwk}} <- IDToken.verify(id_token, client_config, challenge),
+         {:ok, {claims, _jwk}} <- IDToken.verify(id_token, client_config, verification_data),
          {:ok, granted_scopes} <- granted_scopes(token_endpoint_response, challenge)
     do
       {
@@ -397,18 +404,20 @@ defmodule OIDC.Auth do
   end
 
   defp validate_op_response(
-    %{"id_token" => serialized_id_token} = params,
+    %{"id_token" => id_token} = params,
     %Challenge{response_type: "id_token"} = challenge,
     client_config,
-    _opts
+    opts
   ) do
-    with {:ok, {claims, _jwk}} <- IDToken.verify(serialized_id_token, client_config, challenge),
+    verification_data = verification_data(challenge, opts)
+
+    with {:ok, {claims, _jwk}} <- IDToken.verify(id_token, client_config, verification_data),
          {:ok, granted_scopes} <- granted_scopes(params, challenge)
     do
       {
         :ok,
         %OPResponseSuccess{
-          id_token: serialized_id_token,
+          id_token: id_token,
           id_token_claims: claims,
           granted_scopes: granted_scopes
         }
@@ -417,12 +426,14 @@ defmodule OIDC.Auth do
   end
 
   defp validate_op_response(
-    %{"id_token" => serialized_id_token, "access_token" => access_token} = params,
+    %{"id_token" => id_token, "access_token" => access_token} = params,
     %Challenge{response_type: "id_token token"} = challenge,
     client_config,
-    _opts
+    opts
   ) do
-    with {:ok, {claims, jwk}} <- IDToken.verify(serialized_id_token, client_config, challenge),
+    verification_data = verification_data(challenge, opts)
+
+    with {:ok, {claims, jwk}} <- IDToken.verify(id_token, client_config, verification_data),
          {:ok, granted_scopes} <- granted_scopes(params, challenge),
          :ok <- IDToken.verify_hash("at_hash", access_token, claims, jwk)
     do
@@ -441,12 +452,14 @@ defmodule OIDC.Auth do
   end
 
   defp validate_op_response(
-    %{"code" => code, "id_token" => serialized_id_token},
+    %{"code" => code, "id_token" => id_token},
     %Challenge{response_type: "code id_token"} = challenge,
     client_config,
     opts
   ) do
-    with {:ok, {claims, jwk}} <- IDToken.verify(serialized_id_token, client_config, challenge),
+    verification_data = verification_data(challenge, opts)
+
+    with {:ok, {claims, jwk}} <- IDToken.verify(id_token, client_config, verification_data),
          :ok <- IDToken.verify_hash("c_hash", code, claims, jwk),
          {:ok, token_endpoint_response} <- exchange_code(code, challenge, client_config, opts),
          :ok <- validate_token_endpoint_response(token_endpoint_response),
@@ -454,7 +467,7 @@ defmodule OIDC.Auth do
          access_token = token_endpoint_response["access_token"],
          # we through away the first ID token, because the new one must be the same except
          # it can contains more claims
-         {:ok, {claims, jwk}} <- IDToken.verify(id_token, client_config, challenge),
+         {:ok, {claims, jwk}} <- IDToken.verify(id_token, client_config, verification_data),
          {:ok, granted_scopes} <- granted_scopes(token_endpoint_response, challenge),
          :ok <- IDToken.verify_hash_if_present("at_hash", access_token, claims, jwk),
          :ok <- IDToken.verify_hash_if_present("c_hash", code, claims, jwk)
@@ -480,11 +493,13 @@ defmodule OIDC.Auth do
     client_config,
     opts
   ) do
+    verification_data = verification_data(challenge, opts)
+
     with {:ok, token_endpoint_response} <- exchange_code(code, challenge, client_config, opts),
          :ok <- validate_token_endpoint_response(token_endpoint_response),
          id_token = token_endpoint_response["id_token"],
          access_token = token_endpoint_response["access_token"],
-         {:ok, {claims, jwk}} <- IDToken.verify(id_token, client_config, challenge),
+         {:ok, {claims, jwk}} <- IDToken.verify(id_token, client_config, verification_data),
          {:ok, granted_scopes} <- granted_scopes(token_endpoint_response, challenge),
          :ok <- IDToken.verify_hash_if_present("at_hash", access_token, claims, jwk),
          :ok <- IDToken.verify_hash_if_present("c_hash", code, claims, jwk)
@@ -505,12 +520,14 @@ defmodule OIDC.Auth do
   end
 
   defp validate_op_response(
-    %{"code" => code, "id_token" => serialized_id_token, "access_token" => access_token},
+    %{"code" => code, "id_token" => id_token, "access_token" => access_token},
     %Challenge{response_type: "code id_token token"} = challenge,
     client_config,
     opts
   ) do
-    with {:ok, {claims, jwk}} <- IDToken.verify(serialized_id_token, client_config, challenge),
+    verification_data = verification_data(challenge, opts)
+
+    with {:ok, {claims, jwk}} <- IDToken.verify(id_token, client_config, verification_data),
          :ok <- IDToken.verify_hash("at_hash", access_token, claims, jwk),
          :ok <- IDToken.verify_hash("c_hash", code, claims, jwk),
          {:ok, token_endpoint_response} <- exchange_code(code, challenge, client_config, opts),
@@ -519,7 +536,7 @@ defmodule OIDC.Auth do
          access_token = token_endpoint_response["access_token"],
          # we through away the first ID token, because the new one must be the same except
          # it can contains more claims
-         {:ok, {claims, jwk}} <- IDToken.verify(id_token, client_config, challenge),
+         {:ok, {claims, jwk}} <- IDToken.verify(id_token, client_config, verification_data),
          {:ok, granted_scopes} <- granted_scopes(token_endpoint_response, challenge),
          :ok <- IDToken.verify_hash_if_present("at_hash", access_token, claims, jwk),
          :ok <- IDToken.verify_hash_if_present("c_hash", code, claims, jwk)
@@ -646,5 +663,14 @@ defmodule OIDC.Auth do
   defp gen_secure_random_string() do
     :crypto.strong_rand_bytes(32)
     |> Base.url_encode64(padding: false)
+  end
+
+  @spec verification_data(Challenge.t(), verify_opts()) :: OIDC.IDToken.verification_data()
+  defp verification_data(challenge, opts) do
+    challenge
+    |> Map.from_struct()
+    |> Map.put(:jti_register, opts[:jti_register])
+    |> Enum.reject(fn {_k, v} -> v == nil end)
+    |> Enum.into(%{})
   end
 end

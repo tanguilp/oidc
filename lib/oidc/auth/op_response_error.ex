@@ -1,7 +1,7 @@
 defmodule OIDC.Auth.OPResponseError do
   @enforce_keys [:error]
 
-  defstruct [
+  defexception [
     :error,
     :error_description,
     :error_uri
@@ -12,4 +12,8 @@ defmodule OIDC.Auth.OPResponseError do
     error_description: String.t() | nil,
     error_uri: String.t() | nil
   }
+
+  @impl true
+  def message(%{error_description: error_description}), do: error_description
+  def message(%{error: error}), do: error
 end

@@ -37,6 +37,7 @@ defmodule OIDC.IDToken do
     required(:issuer) => OIDC.issuer(),
     optional(:auth_time_required) => boolean(),
     optional(:id_token_iat_max_time_gap) => non_neg_integer(),
+    optional(:jti_register) => module(),
     optional(:mandatory_acrs) => [OIDC.acr()],
     optional(:nonce) => OIDC.nonce(),
     optional(:oauth2_metadata_updater_opts) => Keyword.t(),
@@ -100,6 +101,10 @@ defmodule OIDC.IDToken do
     end
   end
 
+  defmodule ReplayedError do
+    defexception message: "The ID token was reused"
+  end
+
   @doc """
   Verifies an ID Token
 
@@ -148,7 +153,8 @@ defmodule OIDC.IDToken do
          :ok <- verify_iat(id_token_claims, verification_data),
          :ok <- verify_nonce(id_token_claims, verification_data),
          :ok <- verify_acr(id_token_claims, verification_data),
-         :ok <- verify_auth_time(id_token_claims, verification_data) do
+         :ok <- verify_auth_time(id_token_claims, verification_data),
+         :ok <- verify_not_replayed(id_token_claims, verification_data) do
       {:ok, {id_token_claims, jwk}}
     end
   end
@@ -321,6 +327,25 @@ defmodule OIDC.IDToken do
     else
       :ok
     end
+  end
+
+  @spec verify_not_replayed(claims(), verification_data()) :: :ok | {:error, Exception.t()}
+  defp verify_not_replayed(%{"nonce" => nonce}, verification_data) do
+    case verification_data[:jti_register] do
+      impl when is_atom(impl) ->
+        if impl.registered?(nonce) do
+          {:error, %ReplayedError{}}
+        else
+          :ok
+        end
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp verify_not_replayed(_, _) do
+    :ok
   end
 
   @doc """
