@@ -34,7 +34,7 @@ defmodule OIDC.MixProject do
       {:jwks_uri_updater, "~> 1.0"},
       {:oauth2_metadata_updater, "~> 1.0"},
       {:oauth2_utils, "~> 0.1.0"},
-      {:tesla_oauth2_client_auth, "~> 0.1.0"},
+      {:tesla_oauth2_client_auth, "~> 0.2.0"},
     ]
   end
 

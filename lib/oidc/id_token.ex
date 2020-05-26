@@ -120,6 +120,8 @@ defmodule OIDC.IDToken do
     - `"acr"`
     - `"auth_time"`
 
+  It also decrypts the ID token if it is encrypted.
+
   It does **not** verifies the `"c_hash"` and `"at_hash"` claims. See `verify_hash/4` and
   `verify_hash_if_present/4` for this.
   """
@@ -332,15 +334,15 @@ defmodule OIDC.IDToken do
   @spec verify_not_replayed(claims(), verification_data()) :: :ok | {:error, Exception.t()}
   defp verify_not_replayed(%{"nonce" => nonce}, verification_data) do
     case verification_data[:jti_register] do
-      impl when is_atom(impl) ->
+      nil ->
+        :ok
+
+      impl ->
         if impl.registered?(nonce) do
           {:error, %ReplayedError{}}
         else
           :ok
         end
-
-      _ ->
-        :ok
     end
   end
 
@@ -350,7 +352,7 @@ defmodule OIDC.IDToken do
 
   @doc """
   Verifies an hash-claim of an ID token, if present in the ID token
-  
+
   The token hash name is one of:
   - `"c_hash"`
   - `"at_hash"`

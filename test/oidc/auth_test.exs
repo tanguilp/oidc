@@ -12,7 +12,7 @@ defmodule OIDC.AuthTest do
     op = op_metadata()
 
     Tesla.Mock.mock_global(fn
-      %{method: :get, url: "https://example.com/.well-known/oauth-authorization-server"} ->
+      %{method: :get, url: "https://example.com/.well-known/openid-configuration"} ->
         %Tesla.Env{status: 404}
 
       %{method: :post, url: "https://example.com/token"} ->

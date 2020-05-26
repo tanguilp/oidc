@@ -621,7 +621,6 @@ defmodule OIDC.Auth do
         middleware_opts = Map.merge(
           opts[:tesla_auth_middleware_opts] || %{},
           %{
-            client_id: challenge.client_id,
             client_config: client_config,
             server_metadata: ServerMetadata.get(challenge)
           }
