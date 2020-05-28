@@ -1,4 +1,4 @@
-defmodule OIDC.Auth.ClientConfig do
+defmodule OIDC.ClientConfig do
   @moduledoc """
   Behaviour to retrieve client configuration at runtime
 

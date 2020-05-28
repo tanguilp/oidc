@@ -1,5 +1,5 @@
-defmodule OIDC.Client do
-  alias OIDC.Auth.ClientConfig
+defmodule OIDC.Utils.Client do
+  alias OIDC.ClientConfig
 
   defmodule JWKSRetrievalError do
     defexception [:reason]

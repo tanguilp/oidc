@@ -4,9 +4,11 @@ defmodule OIDC.IDToken do
   """
 
   alias OIDC.{
-    Auth.ClientConfig,
+    ClientConfig,
+  }
+  alias OIDC.Utils.{
     Client,
-    OP
+    ServerMetadata
   }
 
   @typedoc """
@@ -198,7 +200,7 @@ defmodule OIDC.IDToken do
   defp verify_signature(serialized_id_token, client_config, verification_data) do
     alg = client_config["id_token_signed_response_alg"] || "RS256"
 
-    with {:ok, jwks} <- OP.jwks(verification_data),
+    with {:ok, jwks} <- ServerMetadata.jwks(verification_data),
          {:ok, result} <- JOSEUtils.JWS.verify(serialized_id_token, jwks, [alg]) do
       {:ok, result}
     else

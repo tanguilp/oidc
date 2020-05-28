@@ -5,12 +5,12 @@ defmodule OIDC.Auth do
 
   alias OIDC.Auth.{
     Challenge,
-    ClientConfig,
     OPResponseError,
     OPResponseSuccess,
     ProtocolError,
-    ServerMetadata
   }
+  alias OIDC.Utils.ServerMetadata
+  alias OIDC.ClientConfig
   alias OIDC.IDToken
 
   @type challenge_opts :: [challenge_opt()]
