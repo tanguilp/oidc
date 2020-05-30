@@ -24,7 +24,12 @@ defmodule OIDC.AuthTest do
           "id_token" => signed_id_token(op, client, nonce: @nonce)
         }
 
-        %Tesla.Env{status: 200, body: resp}
+        resp_headers = [
+          {"Cache-Control", "no-cache, no-store, max-age=0, stale-while-revalidate=300"},
+          {"pragma", "no-cache"}
+        ]
+
+        %Tesla.Env{status: 200, body: resp, headers: resp_headers}
     end)
 
     [client: client, op: op]

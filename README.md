@@ -13,7 +13,7 @@ It includes:
 ```elixir
 def deps do
   [
-    {:oidc, "~> 0.1.0"}
+    {:oidc, "~> 0.2.0"}
   ]
 end
 ```

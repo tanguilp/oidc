@@ -200,16 +200,31 @@ defmodule OIDC.IDToken do
   defp verify_signature(serialized_id_token, client_config, verification_data) do
     alg = client_config["id_token_signed_response_alg"] || "RS256"
 
-    with {:ok, jwks} <- ServerMetadata.jwks(verification_data),
-         {:ok, result} <- JOSEUtils.JWS.verify(serialized_id_token, jwks, [alg]) do
+    jwks =
+      case JOSEUtils.JWS.sig_alg_type(serialized_id_token) do
+        :public_key_crypto ->
+          case ServerMetadata.jwks(verification_data) do
+            {:ok, jwks} -> jwks
+            {:error, e} -> raise e
+          end
+
+        :mac ->
+          case Client.jwks(client_config) do
+            {:ok, jwks} -> jwks
+            {:error, e} -> raise e
+          end
+      end
+      |> JOSEUtils.JWKS.filter(alg: alg)
+
+    with {:ok, result} <- JOSEUtils.JWS.verify(serialized_id_token, jwks, [alg]) do
       {:ok, result}
     else
       :error ->
         {:error, %InvalidSignatureError{}}
-
-      {:error, _} = error ->
-        error
     end
+  rescue
+    e ->
+      {:error, e}
   end
 
   @spec verify_issuer(claims(), verification_data()) :: :ok | {:error, Exception.t()}

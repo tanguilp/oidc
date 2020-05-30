@@ -385,7 +385,9 @@ defmodule OIDC.Auth do
     with {:ok, token_endpoint_response} <- exchange_code(code, challenge, client_config, opts),
          :ok <- validate_token_endpoint_response(token_endpoint_response),
          id_token = token_endpoint_response["id_token"],
-         {:ok, {claims, _jwk}} <- IDToken.verify(id_token, client_config, verification_data),
+         access_token = token_endpoint_response["access_token"],
+         {:ok, {claims, jwk}} <- IDToken.verify(id_token, client_config, verification_data),
+         :ok <- IDToken.verify_hash_if_present("at_hash", access_token, claims, jwk),
          {:ok, granted_scopes} <- granted_scopes(token_endpoint_response, challenge)
     do
       {
@@ -587,19 +589,37 @@ defmodule OIDC.Auth do
     }
     |> maybe_set_code_verifier(challenge)
 
-    with {:ok, middlewares} <- tesla_middlewares(challenge, client_config, opts) do
-      http_client = Tesla.client(middlewares)
+    with {:ok, middlewares} <- tesla_middlewares(challenge, client_config, opts),
+         http_client = Tesla.client(middlewares),
+         {:ok, %Tesla.Env{status: 200} = resp} <- Tesla.post(http_client, token_endpoint, body),
+         true <- header_has_value?(resp.headers, "Cache-Control", "no-store"),
+         true <- header_has_value?(resp.headers, "Pragma", "no-cache") do
+      {:ok, resp.body}
+    else
+      {:ok, %Tesla.Env{status: status, body: body}} ->
+        {:error, %ProtocolError{error: :token_endpoint_invalid_http_status, details: %{
+          status: status,
+          error: body["error"]
+        }}}
 
-      case Tesla.post(http_client, token_endpoint, body) do
-        {:ok, %Tesla.Env{status: 200, body: body}} ->
-          {:ok, body}
+      {:error, _} ->
+        {:error, %ProtocolError{error: :token_endpoint_http_error}}
 
-        {:ok, %Tesla.Env{status: status}} ->
-          {:error, %ProtocolError{error: :token_endpoint_invalid_http_status, details: status}}
+      false ->
+        {:error, %ProtocolError{error: :token_endpoint_invalid_cache_header}}
+    end
+  end
 
-        {:error, _} ->
-          {:error, %ProtocolError{error: :token_endpoint_http_error}}
-      end
+  @spec header_has_value?(Tesla.Env.headers(), String.t(), String.t()) :: boolean()
+  defp header_has_value?(headers, name, value) do
+    headers
+    |> Enum.find(fn {k, _v} -> String.downcase(name) == String.downcase(k) end)
+    |> case do
+      nil ->
+        false
+
+      {_, v} ->
+        v =~ value
     end
   end
 
