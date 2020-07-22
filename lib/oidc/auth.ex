@@ -590,7 +590,7 @@ defmodule OIDC.Auth do
     |> maybe_set_code_verifier(challenge)
 
     with {:ok, middlewares} <- tesla_middlewares(challenge, client_config, opts),
-         http_client = Tesla.client(middlewares),
+         http_client = Tesla.client(middlewares, tesla_adapter()),
          {:ok, %Tesla.Env{status: 200} = resp} <- Tesla.post(http_client, token_endpoint, body),
          true <- header_has_value?(resp.headers, "Cache-Control", "no-store"),
          true <- header_has_value?(resp.headers, "Pragma", "no-cache") do
@@ -692,4 +692,6 @@ defmodule OIDC.Auth do
     |> Enum.reject(fn {_k, v} -> v == nil end)
     |> Enum.into(%{})
   end
+
+  defp tesla_adapter(), do: Application.get_env(:tesla, :adapter, Tesla.Adapter.Hackney)
 end
