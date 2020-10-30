@@ -5,7 +5,7 @@ defmodule OIDC.MixProject do
     [
       app: :oidc,
       description: "Convenience functions to work with OpenID Connect",
-      version: "0.3.0",
+      version: "0.3.1",
       elixir: "~> 1.9",
       elixirc_paths: elixirc_paths(Mix.env()),
       docs: [
