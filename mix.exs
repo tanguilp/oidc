@@ -5,8 +5,8 @@ defmodule OIDC.MixProject do
     [
       app: :oidc,
       description: "Convenience functions to work with OpenID Connect",
-      version: "0.3.1",
-      elixir: "~> 1.9",
+      version: "0.3.2",
+      elixir: "~> 1.12",
       elixirc_paths: elixirc_paths(Mix.env()),
       docs: [
         main: "readme",
@@ -27,14 +27,14 @@ defmodule OIDC.MixProject do
 
   defp deps do
     [
-      {:dialyxir, "~> 1.0.0-rc.4", only: [:dev], runtime: false},
-      {:ex_doc, "~> 0.19", only: :dev, runtime: false},
-      {:hackney, "~> 1.0", optional: true},
-      {:jason, "~> 1.1"},
-      {:jwks_uri_updater, "~> 1.0"},
-      {:oauth2_metadata_updater, "~> 1.0"},
+      {:dialyxir, "~> 1.1", only: :dev, runtime: false},
+      {:ex_doc, "~> 0.25", only: :dev, runtime: false},
+      {:hackney, "~> 1.17", optional: true},
+      {:jason, "~> 1.2"},
+      {:jwks_uri_updater, "~> 1.1"},
+      {:oauth2_metadata_updater, "~> 1.2"},
       {:oauth2_utils, "~> 0.1.0"},
-      {:tesla_oauth2_client_auth, "~> 0.2.0"},
+      {:tesla_oauth2_client_auth, "~> 1.0"}
     ]
   end
 
