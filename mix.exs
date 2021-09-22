@@ -5,12 +5,12 @@ defmodule OIDC.MixProject do
     [
       app: :oidc,
       description: "Convenience functions to work with OpenID Connect",
-      version: "0.3.1",
+      version: "0.4.0",
       elixir: "~> 1.9",
       elixirc_paths: elixirc_paths(Mix.env()),
       docs: [
         main: "readme",
-        extras: ["README.md"]
+        extras: ["README.md", "CHANGELOG.md"]
       ],
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -34,7 +34,7 @@ defmodule OIDC.MixProject do
       {:jwks_uri_updater, "~> 1.0"},
       {:oauth2_metadata_updater, "~> 1.0"},
       {:oauth2_utils, "~> 0.1.0"},
-      {:tesla_oauth2_client_auth, "~> 0.2.0"},
+      {:tesla_oauth2_client_auth, "~> 1.0"}
     ]
   end
 
