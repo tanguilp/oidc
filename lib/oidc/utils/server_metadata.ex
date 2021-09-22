@@ -6,11 +6,11 @@ defmodule OIDC.Utils.ServerMetadata do
 
   @spec get(OIDC.Auth.challenge_opts() | Challenge.t()) :: OIDC.server_metadata()
   def get(%Challenge{} = challenge) do
-    get([
+    get(
       server_metadata: challenge.server_metadata,
       issuer: challenge.issuer,
       oauth2_metadata_updater_opts: challenge.oauth2_metadata_updater_opts
-    ])
+    )
   end
 
   def get(opts) do
@@ -42,8 +42,8 @@ defmodule OIDC.Utils.ServerMetadata do
   field, which takes precedence over using the `"issuer"` field to retrieve the JWKs.
   """
   @spec jwks(Challenge.t() | IDToken.verification_data()) ::
-  {:ok, [JOSEUtils.JWKS.t()]}
-  | {:error, Exception.t()}
+          {:ok, [JOSEUtils.JWKS.t()]}
+          | {:error, Exception.t()}
   def jwks(%{server_metadata: %{"jwks" => jwks}}) do
     {:ok, jwks["keys"]}
   end

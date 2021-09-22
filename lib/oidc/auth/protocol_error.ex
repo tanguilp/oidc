@@ -4,9 +4,9 @@ defmodule OIDC.Auth.ProtocolError do
   defexception [:error, :details]
 
   @type t :: %__MODULE__{
-    error: atom(),
-    details: any()
-  }
+          error: atom(),
+          details: any()
+        }
 
   @impl true
   def message(%{error: :missing_response_params}),

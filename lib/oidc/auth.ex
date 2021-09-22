@@ -7,8 +7,9 @@ defmodule OIDC.Auth do
     Challenge,
     OPResponseError,
     OPResponseSuccess,
-    ProtocolError,
+    ProtocolError
   }
+
   alias OIDC.Utils.ServerMetadata
   alias OIDC.ClientConfig
   alias OIDC.IDToken
@@ -16,30 +17,30 @@ defmodule OIDC.Auth do
   @type challenge_opts :: [challenge_opt()]
 
   @type challenge_opt ::
-  {:acr_values, [OIDC.acr()]}
-  | {:claims, OIDC.claims()}
-  | {:client_config, module()}
-  | {:client_id, OIDC.client_id()}
-  | {:display, String.t()}
-  | {:id_token_iat_max_time_gap, non_neg_integer()}
-  | {:issuer, OIDC.issuer()}
-  | {:login_hint, String.t()}
-  | {:max_age, non_neg_integer()}
-  | {:oauth2_metadata_updater_opts, Keyword.t()}
-  | {:prompt, String.t()}
-  | {:redirect_uri, String.t()}
-  | {:response_mode, OIDC.response_mode()}
-  | {:response_type, OIDC.response_type()}
-  | {:scope, [OIDC.scope()]}
-  | {:server_metadata, OIDC.server_metadata()}
-  | {:ui_locales, [OIDC.ui_locale()]}
-  | {:use_nonce, :when_mandatory | :always}
+          {:acr_values, [OIDC.acr()]}
+          | {:claims, OIDC.claims()}
+          | {:client_config, module()}
+          | {:client_id, OIDC.client_id()}
+          | {:display, String.t()}
+          | {:id_token_iat_max_time_gap, non_neg_integer()}
+          | {:issuer, OIDC.issuer()}
+          | {:login_hint, String.t()}
+          | {:max_age, non_neg_integer()}
+          | {:oauth2_metadata_updater_opts, Keyword.t()}
+          | {:prompt, String.t()}
+          | {:redirect_uri, String.t()}
+          | {:response_mode, OIDC.response_mode()}
+          | {:response_type, OIDC.response_type()}
+          | {:scope, [OIDC.scope()]}
+          | {:server_metadata, OIDC.server_metadata()}
+          | {:ui_locales, [OIDC.ui_locale()]}
+          | {:use_nonce, :when_mandatory | :always}
 
   @type verify_opts() :: [verify_opt()]
   @type verify_opt() ::
-  {:jti_register, module()}
-  | {:tesla_auth_middleware_opts, Keyword.t()}
-  | {:tesla_middlewares, [Tesla.Client.middleware()]}
+          {:jti_register, module()}
+          | {:tesla_auth_middleware_opts, Keyword.t()}
+          | {:tesla_middlewares, [Tesla.Client.middleware()]}
 
   @type op_response :: %{optional(String.t()) => any()}
 
@@ -55,8 +56,8 @@ defmodule OIDC.Auth do
     "id_token token",
     "code id_token",
     "code token",
-  "code id_token token"
-]
+    "code id_token token"
+  ]
 
   @doc """
   Generates an OpenID Connect challenge or raise an exception if a parameter is missing
@@ -109,10 +110,11 @@ defmodule OIDC.Auth do
   """
   @spec gen_challenge(challenge_opts()) :: Challenge.t() | no_return()
   def gen_challenge(opts) do
-    unless opts[:issuer], do: raise "missing issuer"
-    unless opts[:client_id], do: raise "missing client_id"
-    unless opts[:client_config], do: raise "missing client configuration callback module"
-    unless opts[:redirect_uri], do: raise "missing redirect URI"
+    unless opts[:issuer], do: raise("missing issuer")
+    unless opts[:client_id], do: raise("missing client_id")
+    unless opts[:client_config], do: raise("missing client configuration callback module")
+    unless opts[:redirect_uri], do: raise("missing redirect URI")
+
     unless opts[:response_type] in @allowed_response_types do
       raise "Invalid response mode, must be one of: #{inspect(@allowed_response_types)}"
     end
@@ -153,10 +155,11 @@ defmodule OIDC.Auth do
   the `TeslaOAuth2ClientAuth` authentication middleware
   """
   @spec verify_response(
-    op_response(),
-    Challenge.t(),
-    verify_opts()
-  ) :: {:ok, OPResponseSuccess.t()} | {:error, OPResponseError.t()} | {:error, Exception.t()}
+          op_response(),
+          Challenge.t(),
+          verify_opts()
+        ) ::
+          {:ok, OPResponseSuccess.t()} | {:error, OPResponseError.t()} | {:error, Exception.t()}
   def verify_response(op_response, challenge, verify_opts \\ [])
 
   def verify_response(%{"error" => _} = op_response, _challenge, _opts) do
@@ -185,7 +188,7 @@ defmodule OIDC.Auth do
   def request_uri(challenge, opts) do
     authorization_endpoint =
       ServerMetadata.get(opts)["authorization_endpoint"] ||
-      raise "Unable to retrieve `authorization_endpoint` from server metadata or configuration"
+        raise "Unable to retrieve `authorization_endpoint` from server metadata or configuration"
 
     if opts[:response_mode] && opts[:response_mode] not in @allowed_response_modes do
       raise "Invalid response mode, must be one of: #{inspect(@allowed_response_modes)}"
@@ -215,13 +218,10 @@ defmodule OIDC.Auth do
       |> Enum.filter(fn {_k, v} -> v != nil end)
       |> Enum.filter(fn {_k, v} -> v != [] end)
       |> Enum.map(fn
-          {k, [_ | _] = v} -> {k, Enum.join(v, " ")}
-
-          {k, %{} = v} -> {k, Jason.encode!(v)}
-
-          {k, v} -> {k, to_string(v)}
-        end
-      )
+        {k, [_ | _] = v} -> {k, Enum.join(v, " ")}
+        {k, %{} = v} -> {k, Jason.encode!(v)}
+        {k, v} -> {k, to_string(v)}
+      end)
       |> Enum.into(%{})
 
     authorization_endpoint_uri = URI.parse(authorization_endpoint)
@@ -237,7 +237,7 @@ defmodule OIDC.Auth do
   end
 
   @spec maybe_hash_code_verifier_and_method(Challenge.t(), challenge_opts()) ::
-  {String.t() | nil, String.t() | nil}
+          {String.t() | nil, String.t() | nil}
   defp maybe_hash_code_verifier_and_method(%Challenge{pkce_code_verifier: nil}, _opts) do
     {nil, nil}
   end
@@ -274,19 +274,11 @@ defmodule OIDC.Auth do
   end
 
   @spec mandatory_acrs(String.t() | nil) :: [OIDC.acr()] | nil
-  defp mandatory_acrs(%{"id_token" =>
-    %{"acr" =>
-      %{"essential" => true, "value" => acr}
-    }
-  }) do
+  defp mandatory_acrs(%{"id_token" => %{"acr" => %{"essential" => true, "value" => acr}}}) do
     [acr]
   end
 
-  defp mandatory_acrs(%{"id_token" =>
-    %{"acr" =>
-      %{"essential" => true, "values" => acrs}
-    }
-  }) do
+  defp mandatory_acrs(%{"id_token" => %{"acr" => %{"essential" => true, "values" => acrs}}}) do
     acrs
   end
 
@@ -303,13 +295,12 @@ defmodule OIDC.Auth do
       _ ->
         # implicit & hybrid flows
         if opts[:response_type] in [
-            "id_token",
-            "id_token token",
-            "code id_token",
-            "code token",
-            "code id_token token"
-          ]
-        do
+             "id_token",
+             "id_token token",
+             "code id_token",
+             "code token",
+             "code id_token token"
+           ] do
           gen_secure_random_string()
         end
     end
@@ -338,17 +329,19 @@ defmodule OIDC.Auth do
         match?(%{"id_token" => _}, op_response)
 
       "id_token token" ->
-        match?(%{"id_token" =>_, "access_token" => _, "token_type" => _}, op_response)
+        match?(%{"id_token" => _, "access_token" => _, "token_type" => _}, op_response)
 
       "code id_token" ->
-        match?(%{"code" => _, "id_token" =>_}, op_response)
+        match?(%{"code" => _, "id_token" => _}, op_response)
 
       "code token" ->
-        match?(%{"code" => _, "access_token" =>_, "token_type" => _}, op_response)
+        match?(%{"code" => _, "access_token" => _, "token_type" => _}, op_response)
 
       "code id_token token" ->
-        match?(%{"code" => _, "id_token" => _, "access_token" =>_, "token_type" => _}, op_response)
-
+        match?(
+          %{"code" => _, "id_token" => _, "access_token" => _, "token_type" => _},
+          op_response
+        )
     end
     |> if do
       :ok
@@ -369,17 +362,17 @@ defmodule OIDC.Auth do
   end
 
   @spec validate_op_response(
-    op_response(),
-    Challenge.t(),
-    ClientConfig.t(),
-    verify_opts()
-  ) :: {:ok, OPResponseSuccess.t()} | {:error, Exception.t()}
+          op_response(),
+          Challenge.t(),
+          ClientConfig.t(),
+          verify_opts()
+        ) :: {:ok, OPResponseSuccess.t()} | {:error, Exception.t()}
   defp validate_op_response(
-    %{"code" => code},
-    %Challenge{response_type: "code"} = challenge,
-    client_config,
-    opts
-  ) do
+         %{"code" => code},
+         %Challenge{response_type: "code"} = challenge,
+         client_config,
+         opts
+       ) do
     verification_data = verification_data(challenge, opts)
 
     with {:ok, token_endpoint_response} <- exchange_code(code, challenge, client_config, opts),
@@ -388,8 +381,7 @@ defmodule OIDC.Auth do
          access_token = token_endpoint_response["access_token"],
          {:ok, {claims, jwk}} <- IDToken.verify(id_token, client_config, verification_data),
          :ok <- IDToken.verify_hash_if_present("at_hash", access_token, claims, jwk),
-         {:ok, granted_scopes} <- granted_scopes(token_endpoint_response, challenge)
-    do
+         {:ok, granted_scopes} <- granted_scopes(token_endpoint_response, challenge) do
       {
         :ok,
         %OPResponseSuccess{
@@ -406,16 +398,15 @@ defmodule OIDC.Auth do
   end
 
   defp validate_op_response(
-    %{"id_token" => id_token} = params,
-    %Challenge{response_type: "id_token"} = challenge,
-    client_config,
-    opts
-  ) do
+         %{"id_token" => id_token} = params,
+         %Challenge{response_type: "id_token"} = challenge,
+         client_config,
+         opts
+       ) do
     verification_data = verification_data(challenge, opts)
 
     with {:ok, {claims, _jwk}} <- IDToken.verify(id_token, client_config, verification_data),
-         {:ok, granted_scopes} <- granted_scopes(params, challenge)
-    do
+         {:ok, granted_scopes} <- granted_scopes(params, challenge) do
       {
         :ok,
         %OPResponseSuccess{
@@ -428,17 +419,16 @@ defmodule OIDC.Auth do
   end
 
   defp validate_op_response(
-    %{"id_token" => id_token, "access_token" => access_token} = params,
-    %Challenge{response_type: "id_token token"} = challenge,
-    client_config,
-    opts
-  ) do
+         %{"id_token" => id_token, "access_token" => access_token} = params,
+         %Challenge{response_type: "id_token token"} = challenge,
+         client_config,
+         opts
+       ) do
     verification_data = verification_data(challenge, opts)
 
     with {:ok, {claims, jwk}} <- IDToken.verify(id_token, client_config, verification_data),
          {:ok, granted_scopes} <- granted_scopes(params, challenge),
-         :ok <- IDToken.verify_hash("at_hash", access_token, claims, jwk)
-    do
+         :ok <- IDToken.verify_hash("at_hash", access_token, claims, jwk) do
       {
         :ok,
         %OPResponseSuccess{
@@ -454,11 +444,11 @@ defmodule OIDC.Auth do
   end
 
   defp validate_op_response(
-    %{"code" => code, "id_token" => id_token},
-    %Challenge{response_type: "code id_token"} = challenge,
-    client_config,
-    opts
-  ) do
+         %{"code" => code, "id_token" => id_token},
+         %Challenge{response_type: "code id_token"} = challenge,
+         client_config,
+         opts
+       ) do
     verification_data = verification_data(challenge, opts)
 
     with {:ok, {claims, jwk}} <- IDToken.verify(id_token, client_config, verification_data),
@@ -472,8 +462,7 @@ defmodule OIDC.Auth do
          {:ok, {claims, jwk}} <- IDToken.verify(id_token, client_config, verification_data),
          {:ok, granted_scopes} <- granted_scopes(token_endpoint_response, challenge),
          :ok <- IDToken.verify_hash_if_present("at_hash", access_token, claims, jwk),
-         :ok <- IDToken.verify_hash_if_present("c_hash", code, claims, jwk)
-    do
+         :ok <- IDToken.verify_hash_if_present("c_hash", code, claims, jwk) do
       {
         :ok,
         %OPResponseSuccess{
@@ -490,11 +479,11 @@ defmodule OIDC.Auth do
   end
 
   defp validate_op_response(
-    %{"code" => code, "access_token" => _access_token},
-    %Challenge{response_type: "code token"} = challenge,
-    client_config,
-    opts
-  ) do
+         %{"code" => code, "access_token" => _access_token},
+         %Challenge{response_type: "code token"} = challenge,
+         client_config,
+         opts
+       ) do
     verification_data = verification_data(challenge, opts)
 
     with {:ok, token_endpoint_response} <- exchange_code(code, challenge, client_config, opts),
@@ -504,8 +493,7 @@ defmodule OIDC.Auth do
          {:ok, {claims, jwk}} <- IDToken.verify(id_token, client_config, verification_data),
          {:ok, granted_scopes} <- granted_scopes(token_endpoint_response, challenge),
          :ok <- IDToken.verify_hash_if_present("at_hash", access_token, claims, jwk),
-         :ok <- IDToken.verify_hash_if_present("c_hash", code, claims, jwk)
-    do
+         :ok <- IDToken.verify_hash_if_present("c_hash", code, claims, jwk) do
       {
         :ok,
         %OPResponseSuccess{
@@ -522,11 +510,11 @@ defmodule OIDC.Auth do
   end
 
   defp validate_op_response(
-    %{"code" => code, "id_token" => id_token, "access_token" => access_token},
-    %Challenge{response_type: "code id_token token"} = challenge,
-    client_config,
-    opts
-  ) do
+         %{"code" => code, "id_token" => id_token, "access_token" => access_token},
+         %Challenge{response_type: "code id_token token"} = challenge,
+         client_config,
+         opts
+       ) do
     verification_data = verification_data(challenge, opts)
 
     with {:ok, {claims, jwk}} <- IDToken.verify(id_token, client_config, verification_data),
@@ -541,8 +529,7 @@ defmodule OIDC.Auth do
          {:ok, {claims, jwk}} <- IDToken.verify(id_token, client_config, verification_data),
          {:ok, granted_scopes} <- granted_scopes(token_endpoint_response, challenge),
          :ok <- IDToken.verify_hash_if_present("at_hash", access_token, claims, jwk),
-         :ok <- IDToken.verify_hash_if_present("c_hash", code, claims, jwk)
-    do
+         :ok <- IDToken.verify_hash_if_present("c_hash", code, claims, jwk) do
       {
         :ok,
         %OPResponseSuccess{
@@ -560,11 +547,10 @@ defmodule OIDC.Auth do
 
   @spec validate_token_endpoint_response(map()) :: :ok | {:error, Exception.t()}
   defp validate_token_endpoint_response(%{
-      "access_token" => _,
-      "token_type" => _,
-      "id_token" => _,
-    }
-  ) do
+         "access_token" => _,
+         "token_type" => _,
+         "id_token" => _
+       }) do
     :ok
   end
 
@@ -573,21 +559,23 @@ defmodule OIDC.Auth do
   end
 
   @spec exchange_code(
-    String.t(),
-    Challenge.t(),
-    ClientConfig.t(),
-    verify_opts()
-  ) :: {:ok, map()} | {:error, Exception.t()}
+          String.t(),
+          Challenge.t(),
+          ClientConfig.t(),
+          verify_opts()
+        ) :: {:ok, map()} | {:error, Exception.t()}
   defp exchange_code(code, challenge, client_config, opts) do
-    token_endpoint = ServerMetadata.get(challenge)["token_endpoint"] ||
-      raise "Unable to retrieve `token_endpoint` from server metadata or configuration"
+    token_endpoint =
+      ServerMetadata.get(challenge)["token_endpoint"] ||
+        raise "Unable to retrieve `token_endpoint` from server metadata or configuration"
 
-    body = %{
-      "grant_type" => "authorization_code",
-      "code" => code,
-      "redirect_uri" => challenge.redirect_uri
-    }
-    |> maybe_set_code_verifier(challenge)
+    body =
+      %{
+        "grant_type" => "authorization_code",
+        "code" => code,
+        "redirect_uri" => challenge.redirect_uri
+      }
+      |> maybe_set_code_verifier(challenge)
 
     with {:ok, middlewares} <- tesla_middlewares(challenge, client_config, opts),
          http_client = Tesla.client(middlewares, tesla_adapter()),
@@ -597,10 +585,14 @@ defmodule OIDC.Auth do
       {:ok, resp.body}
     else
       {:ok, %Tesla.Env{status: status, body: body}} ->
-        {:error, %ProtocolError{error: :token_endpoint_invalid_http_status, details: %{
-          status: status,
-          error: body["error"]
-        }}}
+        {:error,
+         %ProtocolError{
+           error: :token_endpoint_invalid_http_status,
+           details: %{
+             status: status,
+             error: body["error"]
+           }
+         }}
 
       {:error, _} ->
         {:error, %ProtocolError{error: :token_endpoint_http_error}}
@@ -625,34 +617,36 @@ defmodule OIDC.Auth do
 
   @spec maybe_set_code_verifier(map(), Challenge.t()) :: map()
   defp maybe_set_code_verifier(body, %Challenge{pkce_code_verifier: nil}), do: body
+
   defp maybe_set_code_verifier(body, challenge),
     do: Map.put(body, "code_verifier", challenge.pkce_code_verifier)
 
   @spec tesla_middlewares(
-    Challenge.t(),
-    ClientConfig.t(),
-    verify_opts()
-  ) :: {:ok, [Tesla.Client.middleware()]} | {:error, Exception.t()}
+          Challenge.t(),
+          ClientConfig.t(),
+          verify_opts()
+        ) :: {:ok, [Tesla.Client.middleware()]} | {:error, Exception.t()}
   defp tesla_middlewares(challenge, client_config, opts) do
     auth_method = client_config["token_endpoint_auth_method"] || "client_secret_basic"
 
     case TeslaOAuth2ClientAuth.implementation(auth_method) do
       {:ok, authenticator} ->
-        middleware_opts = Map.merge(
-          opts[:tesla_auth_middleware_opts] || %{},
-          %{
-            client_config: client_config,
-            server_metadata: ServerMetadata.get(challenge)
-          }
-        )
+        middleware_opts =
+          Map.merge(
+            opts[:tesla_auth_middleware_opts] || %{},
+            %{
+              client_config: client_config,
+              server_metadata: ServerMetadata.get(challenge)
+            }
+          )
 
         {
           :ok,
-          [{authenticator, middleware_opts}]
-          ++ [Tesla.Middleware.FormUrlencoded]
-          ++ [Tesla.Middleware.DecodeJson]
-          ++ (opts[:tesla_middlewares] || [])
-          ++ Application.get_env(:oidc, :tesla_middlewares, [])
+          [{authenticator, middleware_opts}] ++
+            [Tesla.Middleware.FormUrlencoded] ++
+            [Tesla.Middleware.DecodeJson] ++
+            (opts[:tesla_middlewares] || []) ++
+            Application.get_env(:oidc, :tesla_middlewares, [])
         }
 
       {:error, _} ->
@@ -661,9 +655,9 @@ defmodule OIDC.Auth do
   end
 
   @spec granted_scopes(
-    op_response(),
-    Challenge.t()
-  ) :: {:ok, [OIDC.scope()]} | {:error, Exception.t()}
+          op_response(),
+          Challenge.t()
+        ) :: {:ok, [OIDC.scope()]} | {:error, Exception.t()}
   defp granted_scopes(%{"scope" => scope_param}, _challenge) do
     case OAuth2Utils.Scope.Set.from_scope_param(scope_param) do
       {:ok, scope_set} ->

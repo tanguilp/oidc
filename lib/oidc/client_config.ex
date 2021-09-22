@@ -28,7 +28,6 @@ defmodule OIDC.ClientConfig do
     def message(%{field: field}), do: "Client `#{field}` field is not configured"
   end
 
-
   @doc """
   Returns the client configuration, or `nil` if not found
   """

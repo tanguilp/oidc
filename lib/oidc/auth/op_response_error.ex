@@ -8,10 +8,10 @@ defmodule OIDC.Auth.OPResponseError do
   ]
 
   @type t :: %__MODULE__{
-    error: String.t(),
-    error_description: String.t() | nil,
-    error_uri: String.t() | nil
-  }
+          error: String.t(),
+          error_description: String.t() | nil,
+          error_uri: String.t() | nil
+        }
 
   @impl true
   def message(%{error_description: error_description}), do: error_description

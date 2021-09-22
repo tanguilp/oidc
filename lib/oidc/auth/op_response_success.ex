@@ -17,12 +17,12 @@ defmodule OIDC.Auth.OPResponseSuccess do
   ]
 
   @type t :: %__MODULE__{
-    access_token: OIDC.access_token() | nil,
-    access_token_expires_in: non_neg_integer() | nil,
-    access_token_type: OIDC.access_token_type() | nil,
-    refresh_token: OIDC.refresh_token() | nil,
-    id_token: OIDC.id_token(),
-    id_token_claims: OIDC.id_token_claims(),
-    granted_scopes: [OIDC.scope()]
-  }
+          access_token: OIDC.access_token() | nil,
+          access_token_expires_in: non_neg_integer() | nil,
+          access_token_type: OIDC.access_token_type() | nil,
+          refresh_token: OIDC.refresh_token() | nil,
+          id_token: OIDC.id_token(),
+          id_token_claims: OIDC.id_token_claims(),
+          granted_scopes: [OIDC.scope()]
+        }
 end

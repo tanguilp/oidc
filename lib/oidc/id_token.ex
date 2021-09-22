@@ -4,8 +4,9 @@ defmodule OIDC.IDToken do
   """
 
   alias OIDC.{
-    ClientConfig,
+    ClientConfig
   }
+
   alias OIDC.Utils.{
     Client,
     ServerMetadata
@@ -35,17 +36,17 @@ defmodule OIDC.IDToken do
   Data needed to verify an ID Token
   """
   @type verification_data :: %{
-    required(:client_id) => OIDC.client_id(),
-    required(:issuer) => OIDC.issuer(),
-    optional(:auth_time_required) => boolean(),
-    optional(:id_token_iat_max_time_gap) => non_neg_integer(),
-    optional(:jti_register) => module(),
-    optional(:mandatory_acrs) => [OIDC.acr()],
-    optional(:nonce) => OIDC.nonce(),
-    optional(:oauth2_metadata_updater_opts) => Keyword.t(),
-    optional(:server_metadata) => OIDC.server_metadata(),
-    optional(atom()) => any()
-  }
+          required(:client_id) => OIDC.client_id(),
+          required(:issuer) => OIDC.issuer(),
+          optional(:auth_time_required) => boolean(),
+          optional(:id_token_iat_max_time_gap) => non_neg_integer(),
+          optional(:jti_register) => module(),
+          optional(:mandatory_acrs) => [OIDC.acr()],
+          optional(:nonce) => OIDC.nonce(),
+          optional(:oauth2_metadata_updater_opts) => Keyword.t(),
+          optional(:server_metadata) => OIDC.server_metadata(),
+          optional(atom()) => any()
+        }
 
   defmodule DecryptionError do
     defexception message: "ID token could not be decrypted"
@@ -85,7 +86,8 @@ defmodule OIDC.IDToken do
   end
 
   defmodule InvalidNonceError do
-    defexception message: "A nonce is expected in the ID token, or it does not match the expected one"
+    defexception message:
+                   "A nonce is expected in the ID token, or it does not match the expected one"
   end
 
   defmodule InvalidACRError do
@@ -128,10 +130,10 @@ defmodule OIDC.IDToken do
   `verify_hash_if_present/4` for this.
   """
   @spec verify(
-    serialized(),
-    ClientConfig.t(),
-    verification_data()
-  ) :: {:ok, {claims(), JOSEUtils.JWK.t()}} | {:error, Exception.t()}
+          serialized(),
+          ClientConfig.t(),
+          verification_data()
+        ) :: {:ok, {claims(), JOSEUtils.JWK.t()}} | {:error, Exception.t()}
   def verify(serialized_id_token, client_conf, %_{} = verification_data) do
     # converts a %OIDC.Auth.Challenge{} to a map that supports the access protocol (contrary
     # to structs)
@@ -164,9 +166,9 @@ defmodule OIDC.IDToken do
   end
 
   @spec maybe_decrypt_id_token(
-    serialized(),
-    ClientConfig.t()
-  ) :: {:ok, String.t()} | {:error, Exception.t()}
+          serialized(),
+          ClientConfig.t()
+        ) :: {:ok, String.t()} | {:error, Exception.t()}
   defp maybe_decrypt_id_token(id_token, client_config) do
     if JOSEUtils.is_jwe?(id_token) do
       case client_config do
@@ -193,10 +195,10 @@ defmodule OIDC.IDToken do
   end
 
   @spec verify_signature(
-    serialized(),
-    ClientConfig.t(),
-    verification_data()
-  ) :: {:ok, {binary(), JOSEUtils.JWK.t()}} | {:error, Exception.t()}
+          serialized(),
+          ClientConfig.t(),
+          verification_data()
+        ) :: {:ok, {binary(), JOSEUtils.JWK.t()}} | {:error, Exception.t()}
   defp verify_signature(serialized_id_token, client_config, verification_data) do
     alg = client_config["id_token_signed_response_alg"] || "RS256"
 
@@ -378,11 +380,11 @@ defmodule OIDC.IDToken do
   signature.
   """
   @spec verify_hash_if_present(
-    String.t(),
-    String.t(),
-    claims(),
-    JOSEUtils.JWK.t()
-  ) :: :ok | {:error, Exception.t()}
+          String.t(),
+          String.t(),
+          claims(),
+          JOSEUtils.JWK.t()
+        ) :: :ok | {:error, Exception.t()}
   def verify_hash_if_present(token_hash_name, token, claims, jwk) do
     if claims[token_hash_name] do
       verify_hash(token_hash_name, token, claims, jwk)
@@ -402,11 +404,11 @@ defmodule OIDC.IDToken do
   signature.
   """
   @spec verify_hash(
-    String.t(),
-    String.t(),
-    claims(),
-    JOSEUtils.JWK.t()
-  ) :: :ok | {:error, Exception.t()}
+          String.t(),
+          String.t(),
+          claims(),
+          JOSEUtils.JWK.t()
+        ) :: :ok | {:error, Exception.t()}
   def verify_hash(token_hash_name, token, claims, jwk) do
     hashed_token = :crypto.hash(JOSEUtils.JWK.sig_alg_digest(jwk), token)
 

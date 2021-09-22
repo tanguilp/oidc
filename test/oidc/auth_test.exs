@@ -48,7 +48,11 @@ defmodule OIDC.AuthTest do
       assert {:ok, _} = Auth.verify_response(op_response, challenge)
     end
 
-    test "valid response with response type id_token", %{client: client, op: op, challenge: challenge} do
+    test "valid response with response type id_token", %{
+      client: client,
+      op: op,
+      challenge: challenge
+    } do
       challenge =
         Map.put(challenge, :response_type, "id_token")
         |> Auth.gen_challenge()
@@ -61,26 +65,36 @@ defmodule OIDC.AuthTest do
       assert {:ok, _} = Auth.verify_response(op_response, challenge)
     end
 
-    test "valid response with response type id_token token", %{client: client, op: op, challenge: challenge} do
+    test "valid response with response type id_token token", %{
+      client: client,
+      op: op,
+      challenge: challenge
+    } do
       challenge =
         Map.put(challenge, :response_type, "id_token token")
         |> Auth.gen_challenge()
         |> Map.put(:nonce, @nonce)
 
       op_response = %{
-        "id_token" => signed_id_token(
-          op,
-          client,
-          nonce: @nonce, at_hash: token_hash("abcdef", List.first(op["jwks"]["keys"]))
-        ),
+        "id_token" =>
+          signed_id_token(
+            op,
+            client,
+            nonce: @nonce,
+            at_hash: token_hash("abcdef", List.first(op["jwks"]["keys"]))
+          ),
         "access_token" => "abcdef",
-        "token_type" => "bearer",
+        "token_type" => "bearer"
       }
 
       assert {:ok, _} = Auth.verify_response(op_response, challenge)
     end
 
-    test "valid response with response type code id_token", %{client: client, op: op, challenge: challenge} do
+    test "valid response with response type code id_token", %{
+      client: client,
+      op: op,
+      challenge: challenge
+    } do
       challenge =
         Map.put(challenge, :response_type, "code id_token")
         |> Auth.gen_challenge()
@@ -88,11 +102,13 @@ defmodule OIDC.AuthTest do
 
       op_response = %{
         "code" => "authz_code",
-        "id_token" => signed_id_token(
-          op,
-          client,
-          nonce: @nonce, c_hash: token_hash("authz_code", List.first(op["jwks"]["keys"]))
-        ),
+        "id_token" =>
+          signed_id_token(
+            op,
+            client,
+            nonce: @nonce,
+            c_hash: token_hash("authz_code", List.first(op["jwks"]["keys"]))
+          )
       }
 
       assert {:ok, _} = Auth.verify_response(op_response, challenge)
@@ -113,7 +129,11 @@ defmodule OIDC.AuthTest do
       assert {:ok, _} = Auth.verify_response(op_response, challenge)
     end
 
-    test "valid response with response type code id_token token", %{client: client, op: op, challenge: challenge} do
+    test "valid response with response type code id_token token", %{
+      client: client,
+      op: op,
+      challenge: challenge
+    } do
       challenge =
         Map.put(challenge, :response_type, "code id_token token")
         |> Auth.gen_challenge()
@@ -123,13 +143,14 @@ defmodule OIDC.AuthTest do
         "code" => "authz_code",
         "access_token" => "abcdef",
         "token_type" => "bearer",
-        "id_token" => signed_id_token(
-          op,
-          client,
-          nonce: @nonce,
-          at_hash: token_hash("abcdef", List.first(op["jwks"]["keys"])),
-          c_hash: token_hash("authz_code", List.first(op["jwks"]["keys"]))
-        ),
+        "id_token" =>
+          signed_id_token(
+            op,
+            client,
+            nonce: @nonce,
+            at_hash: token_hash("abcdef", List.first(op["jwks"]["keys"])),
+            c_hash: token_hash("authz_code", List.first(op["jwks"]["keys"]))
+          )
       }
 
       assert {:ok, _} = Auth.verify_response(op_response, challenge)
@@ -139,7 +160,7 @@ defmodule OIDC.AuthTest do
   describe "request_uri/2" do
     setup [:create_challenge]
 
-    test "authorization endpoint retains its query parameters" , %{challenge: challenge_opts} do
+    test "authorization endpoint retains its query parameters", %{challenge: challenge_opts} do
       challenge = Map.put(challenge_opts, :response_type, "code") |> Auth.gen_challenge()
 
       request_uri = Auth.request_uri(challenge, challenge_opts) |> URI.to_string()
