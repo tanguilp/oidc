@@ -165,7 +165,7 @@ defmodule OIDC.AuthTest do
     hashed_token = :crypto.hash(JOSEUtils.JWK.sig_alg_digest(jwk), token)
 
     hashed_token
-    |> String.slice(0, div(byte_size(hashed_token), 2) - 1)
+    |> binary_part(0, div(byte_size(hashed_token), 2))
     |> Base.url_encode64(padding: false)
   end
 end
