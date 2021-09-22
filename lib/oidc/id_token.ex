@@ -393,7 +393,7 @@ defmodule OIDC.IDToken do
 
   @doc """
   Verifies an hash-claim of an ID token
-  
+
   The token hash name is one of:
   - `"c_hash"`
   - `"at_hash"`
@@ -412,7 +412,7 @@ defmodule OIDC.IDToken do
 
     computed_token_hash =
       hashed_token
-      |> String.slice(0, div(byte_size(hashed_token), 2) - 1)
+      |> binary_part(0, div(byte_size(hashed_token), 2))
       |> Base.url_encode64(padding: false)
 
     if computed_token_hash == claims[token_hash_name] do
