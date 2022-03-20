@@ -13,7 +13,7 @@ It includes:
 ```elixir
 def deps do
   [
-    {:oidc, "~> 0.4"},
+    {:oidc, "~> 0.5"},
     {:hackney, "~> 1.0"}
   ]
 end
