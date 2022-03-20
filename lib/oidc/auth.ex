@@ -368,14 +368,15 @@ defmodule OIDC.Auth do
           verify_opts()
         ) :: {:ok, OPResponseSuccess.t()} | {:error, Exception.t()}
   defp validate_op_response(
-         %{"code" => code},
+         %{"code" => code} = params,
          %Challenge{response_type: "code"} = challenge,
          client_config,
          opts
        ) do
     verification_data = verification_data(challenge, opts)
 
-    with {:ok, token_endpoint_response} <- exchange_code(code, challenge, client_config, opts),
+    with :ok <- verify_resp_iss_param(challenge, params),
+         {:ok, token_endpoint_response} <- exchange_code(code, challenge, client_config, opts),
          :ok <- validate_token_endpoint_response(token_endpoint_response),
          id_token = token_endpoint_response["id_token"],
          access_token = token_endpoint_response["access_token"],
@@ -405,7 +406,9 @@ defmodule OIDC.Auth do
        ) do
     verification_data = verification_data(challenge, opts)
 
-    with {:ok, {claims, _jwk}} <- IDToken.verify(id_token, client_config, verification_data),
+    with :ok <- verify_resp_iss_param(challenge, params),
+         {:ok, {claims, _jwk}} <- IDToken.verify(id_token, client_config, verification_data),
+         :ok <- verify_resp_iss_param_matches_id_token(challenge, claims, params),
          {:ok, granted_scopes} <- granted_scopes(params, challenge) do
       {
         :ok,
@@ -426,7 +429,9 @@ defmodule OIDC.Auth do
        ) do
     verification_data = verification_data(challenge, opts)
 
-    with {:ok, {claims, jwk}} <- IDToken.verify(id_token, client_config, verification_data),
+    with :ok <- verify_resp_iss_param(challenge, params),
+         {:ok, {claims, jwk}} <- IDToken.verify(id_token, client_config, verification_data),
+         :ok <- verify_resp_iss_param_matches_id_token(challenge, claims, params),
          {:ok, granted_scopes} <- granted_scopes(params, challenge),
          :ok <- IDToken.verify_hash("at_hash", access_token, claims, jwk) do
       {
@@ -444,14 +449,16 @@ defmodule OIDC.Auth do
   end
 
   defp validate_op_response(
-         %{"code" => code, "id_token" => id_token},
+         %{"code" => code, "id_token" => id_token} = params,
          %Challenge{response_type: "code id_token"} = challenge,
          client_config,
          opts
        ) do
     verification_data = verification_data(challenge, opts)
 
-    with {:ok, {claims, jwk}} <- IDToken.verify(id_token, client_config, verification_data),
+    with :ok <- verify_resp_iss_param(challenge, params),
+         {:ok, {claims, jwk}} <- IDToken.verify(id_token, client_config, verification_data),
+         :ok <- verify_resp_iss_param_matches_id_token(challenge, claims, params),
          :ok <- IDToken.verify_hash("c_hash", code, claims, jwk),
          {:ok, token_endpoint_response} <- exchange_code(code, challenge, client_config, opts),
          :ok <- validate_token_endpoint_response(token_endpoint_response),
@@ -479,14 +486,15 @@ defmodule OIDC.Auth do
   end
 
   defp validate_op_response(
-         %{"code" => code, "access_token" => _access_token},
+         %{"code" => code, "access_token" => _access_token} = params,
          %Challenge{response_type: "code token"} = challenge,
          client_config,
          opts
        ) do
     verification_data = verification_data(challenge, opts)
 
-    with {:ok, token_endpoint_response} <- exchange_code(code, challenge, client_config, opts),
+    with :ok <- verify_resp_iss_param(challenge, params),
+         {:ok, token_endpoint_response} <- exchange_code(code, challenge, client_config, opts),
          :ok <- validate_token_endpoint_response(token_endpoint_response),
          id_token = token_endpoint_response["id_token"],
          access_token = token_endpoint_response["access_token"],
@@ -510,14 +518,16 @@ defmodule OIDC.Auth do
   end
 
   defp validate_op_response(
-         %{"code" => code, "id_token" => id_token, "access_token" => access_token},
+         %{"code" => code, "id_token" => id_token, "access_token" => access_token} = params,
          %Challenge{response_type: "code id_token token"} = challenge,
          client_config,
          opts
        ) do
     verification_data = verification_data(challenge, opts)
 
-    with {:ok, {claims, jwk}} <- IDToken.verify(id_token, client_config, verification_data),
+    with :ok <- verify_resp_iss_param(challenge, params),
+         {:ok, {claims, jwk}} <- IDToken.verify(id_token, client_config, verification_data),
+         :ok <- verify_resp_iss_param_matches_id_token(challenge, claims, params),
          :ok <- IDToken.verify_hash("at_hash", access_token, claims, jwk),
          :ok <- IDToken.verify_hash("c_hash", code, claims, jwk),
          {:ok, token_endpoint_response} <- exchange_code(code, challenge, client_config, opts),
@@ -670,6 +680,32 @@ defmodule OIDC.Auth do
 
   defp granted_scopes(_op_response, challenge) do
     {:ok, challenge.scope}
+  end
+
+  defp verify_resp_iss_param(challenge, params) do
+    case ServerMetadata.get(challenge) do
+      %{"authorization_response_iss_parameter_supported" => true, "issuer" => issuer} ->
+        if issuer == params["iss"] do
+          :ok
+        else
+          {:error, %ProtocolError{error: :non_matching_resp_iss_param}}
+        end
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp verify_resp_iss_param_matches_id_token(challenge, claims, params) do
+    if ServerMetadata.get(challenge)["authorization_response_iss_parameter_supported"] do
+      if claims["iss"] == params["iss"] do
+        :ok
+      else
+        {:error, %ProtocolError{error: :non_matching_resp_iss_param_with_id_token}}
+      end
+    else
+      :ok
+    end
   end
 
   @spec gen_secure_random_string() :: String.t()

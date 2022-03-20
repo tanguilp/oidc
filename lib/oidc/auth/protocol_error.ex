@@ -29,4 +29,10 @@ defmodule OIDC.Auth.ProtocolError do
 
   def message(%{error: :token_endpoint_invalid_response}),
     do: "A parameter is missing in token endpoint response"
+
+  def message(%{error: :non_matching_resp_iss_param}),
+    do: "Response `iss` parameter does not match requested issuer"
+
+  def message(%{error: :non_matching_resp_iss_param_with_id_token}),
+    do: "Response `iss` parameter does not match ID token issuer"
 end
