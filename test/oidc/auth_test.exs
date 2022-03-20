@@ -155,6 +155,40 @@ defmodule OIDC.AuthTest do
 
       assert {:ok, _} = Auth.verify_response(op_response, challenge)
     end
+
+    test "valid response with response type code and valid iss resp parameter", %{
+      challenge: challenge
+    } do
+      challenge =
+        challenge
+        |> Map.put(:response_type, "code")
+        |> put_in([:server_metadata, "authorization_response_iss_parameter_supported"], true)
+        |> Auth.gen_challenge()
+
+      op_response = %{
+        "code" => "authz_code",
+        "iss" => challenge.issuer
+      }
+
+      assert {:ok, _} = Auth.verify_response(op_response, challenge)
+    end
+
+    test "valid response with response type code but invalid iss resp parameter", %{
+      challenge: challenge
+    } do
+      challenge =
+        challenge
+        |> Map.put(:response_type, "code")
+        |> put_in([:server_metadata, "authorization_response_iss_parameter_supported"], true)
+        |> Auth.gen_challenge()
+
+      op_response = %{
+        "code" => "authz_code",
+        "iss" => "not-the-original-issuer"
+      }
+
+      assert {:error, %OIDC.Auth.ProtocolError{}} = Auth.verify_response(op_response, challenge)
+    end
   end
 
   describe "request_uri/2" do
