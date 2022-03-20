@@ -5,7 +5,7 @@ defmodule OIDC.MixProject do
     [
       app: :oidc,
       description: "Convenience functions to work with OpenID Connect",
-      version: "0.4.0",
+      version: "0.5.0",
       elixir: "~> 1.9",
       elixirc_paths: elixirc_paths(Mix.env()),
       docs: [
@@ -27,7 +27,7 @@ defmodule OIDC.MixProject do
 
   defp deps do
     [
-      {:dialyxir, "~> 1.0.0-rc.4", only: [:dev], runtime: false},
+      {:dialyxir, "~> 1.0", only: [:dev], runtime: false},
       {:ex_doc, "~> 0.19", only: :dev, runtime: false},
       {:hackney, "~> 1.0", optional: true},
       {:jason, "~> 1.1"},
